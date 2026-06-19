@@ -1,0 +1,27 @@
+{
+  "name": "prbot",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PRbøt — AI-powered GitHub PR testing agent",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "nodemon server/index.js",
+    "dev:client": "cd client && npm run dev",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@octokit/auth-app": "^7.1.0",
+    "@octokit/rest": "^21.1.0",
+    "bullmq": "^5.34.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "ioredis": "^5.4.0",
+    "mongoose": "^8.9.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "nodemon": "^3.1.0"
+  }
+}

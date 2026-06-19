@@ -1,0 +1,9 @@
+node_modules/
+client/node_modules/
+.env
+*.pem
+/tmp/autoqa-*
+/tmp/prbot-*
+dist/
+client/dist/
+.DS_Store
