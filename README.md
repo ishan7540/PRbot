@@ -1,15 +1,15 @@
-# 🤖 PRbøt
+# PRbøt
 
 **AI-powered GitHub PR testing agent** — Automatically analyzes, tests, and secures your pull requests.
 
 When a developer opens or updates a PR, PRbøt's multi-agent pipeline kicks in:
 
-1. 🔍 **Analyzes** the code diff (Orchestrator — Claude Haiku)
-2. 🧪 **Generates** Jest/Playwright tests (Test Writer — Claude Sonnet)
-3. 🛡️ **Scans** for security vulnerabilities (Security Scanner — Claude Sonnet)
-4. 📊 **Identifies** untested code paths (Coverage Analyst — Claude Haiku)
-5. 🐳 **Executes** tests in an isolated Docker sandbox
-6. 💬 **Posts** a detailed report as a PR comment + sets commit status
+1.  **Analyzes** the code diff (Orchestrator — Claude Haiku)
+2.  **Generates** Jest/Playwright tests (Test Writer — Claude Sonnet)
+3.  **Scans** for security vulnerabilities (Security Scanner — Claude Sonnet)
+4.  **Identifies** untested code paths (Coverage Analyst — Claude Haiku)
+5.  **Executes** tests in an isolated Docker sandbox
+6.  **Posts** a detailed report as a PR comment + sets commit status
 
 ---
 
@@ -125,11 +125,3 @@ ngrok http 3001
    base64 -i private-key.pem | tr -d '\n'
    ```
 5. Install the app on your target repos
-
-## Cost
-
-~$0.03–0.08 per PR run. A month of active development costs under $5.
-
-## License
-
-MIT
