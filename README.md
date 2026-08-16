@@ -21,7 +21,7 @@ GitHub PR → Webhook → Express → BullMQ Queue → Worker Pipeline
                                     ┌───────────────┼───────────────┐
                                     │               │               │
                               Test Writer    Security Scanner  Coverage Analyst
-                             (Sonnet 4.6)    (Sonnet 4.6)      (Haiku 4.5)
+                             (openai 5.6 terra)    (openai 5.6 terra)      (openai 5.6 luna)
                                     │               │               │
                                     └───────────────┼───────────────┘
                                                     │
