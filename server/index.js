@@ -2,10 +2,14 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import config from './config/index.js'
+import { validateConfig } from './config/validate.js'
 import webhookRouter from './routes/webhook.js'
 import apiRouter from './routes/api.js'
 import { queue } from './queue/index.js'
 import { startWorker } from './queue/worker.js'
+
+// Validate configuration before anything else
+validateConfig()
 
 const app = express()
 

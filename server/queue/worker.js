@@ -11,10 +11,9 @@ import {
   setCommitStatus,
 } from '../github/client.js'
 import { orchestrate } from '../agents/orchestrator.js'
-import { generateTests } from '../agents/testWriter.js'
+import { iterateTests } from '../agents/iterationRunner.js'
 import { scanSecurity } from '../agents/securityScanner.js'
 import { analyzeCoverage } from '../agents/coverageAnalyst.js'
-import { runSandbox } from '../sandbox/runner.js'
 import { formatPRComment } from '../utils/formatComment.js'
 
 // BullMQ requires separate Redis connections for Queue and Worker.
@@ -39,61 +38,69 @@ export function startWorker() {
         // 2. Get authenticated GitHub client
         const { octokit, token } = await getOctokit(installationId)
 
-        // 3. Fetch diff (truncate to 50k chars to stay within token limits)
+        // 3. Set pending commit status
+        await setCommitStatus(
+          octokit,
+          repo,
+          sha,
+          'pending',
+          'PRbøt is analyzing this PR...'
+        ).catch(() => {})
+
+        // 4. Fetch diff (truncate to 50k chars to stay within token limits)
         const rawDiff = await getDiff(octokit, repo, prNumber)
         const diff = rawDiff.slice(0, 50000)
 
-        // 4. Fetch existing test files for style matching
+        // 5. Fetch existing test files for style matching
         const existingTests = await getExistingTests(octokit, repo, sha)
 
-        // 5. Orchestrator: analyze diff → structured plan
+        // 6. Orchestrator: analyze diff → structured plan
         console.log(`[Worker] Job ${job.id}: Running orchestrator...`)
         const plan = await orchestrate(diff)
 
-        // 6. Run three specialist agents in parallel
-        console.log(`[Worker] Job ${job.id}: Running agents in parallel...`)
-        const [testResult, securityResult, coverageResult] = await Promise.all([
-          generateTests(diff, plan, existingTests),
-          scanSecurity(diff, plan),
-          analyzeCoverage(diff, plan, existingTests),
-        ])
+        // 7. Run specialist agents in parallel:
+        //    - Security scanner + Coverage analyst run alongside the iteration loop
+        //    - Iteration loop: generate → run → analyze → fix → re-run
+        console.log(`[Worker] Job ${job.id}: Running agents...`)
+        const [iterationResult, securityResult, coverageResult] =
+          await Promise.all([
+            iterateTests({
+              diff,
+              plan,
+              existingTests,
+              repo,
+              sha,
+              branch,
+              token,
+            }),
+            scanSecurity(diff, plan),
+            analyzeCoverage(diff, plan, existingTests),
+          ])
 
-        // 7. Commit generated tests to PR branch
-        if (testResult.testFiles && testResult.testFiles.length > 0) {
-          await commitGeneratedTests(
-            octokit,
-            repo,
-            branch,
-            sha,
-            testResult.testFiles
-          )
+        const { testFiles, sandboxResult, iterations, codeIssues } =
+          iterationResult
+
+        // 8. Commit generated tests to PR branch
+        if (testFiles && testFiles.length > 0) {
+          await commitGeneratedTests(octokit, repo, branch, sha, testFiles)
         }
-
-        // 8. Run tests in Docker sandbox
-        console.log(`[Worker] Job ${job.id}: Running sandbox...`)
-        const sandboxResult = await runSandbox(
-          repo,
-          sha,
-          branch,
-          testResult.testFiles || [],
-          token
-        )
 
         // 9. Calculate duration and save results
         const duration = Date.now() - startTime
-        const finalStatus =
-          sandboxResult.failed > 0 ? 'failed' : 'passed'
+        const finalStatus = sandboxResult.failed > 0 ? 'failed' : 'passed'
 
         await Run.findByIdAndUpdate(runId, {
           status: finalStatus,
           orchestratorPlan: plan,
-          generatedTests: testResult.testFiles || [],
+          generatedTests: testFiles || [],
           sandboxResult,
           securityFindings: securityResult.findings || [],
           securitySummary: securityResult.summary,
           overallRisk: securityResult.overallRisk,
           coverageGaps: coverageResult.gaps || [],
           coverageScore: coverageResult.coverageScore,
+          iterations,
+          codeIssues,
           duration,
         })
 
@@ -118,7 +125,7 @@ export function startWorker() {
         )
 
         console.log(
-          `[Worker] Job ${job.id}: Completed in ${Math.round(duration / 1000)}s — ${finalStatus}`
+          `[Worker] Job ${job.id}: Completed in ${Math.round(duration / 1000)}s — ${finalStatus} (${iterations.length} iteration(s))`
         )
       } catch (err) {
         // On failure: update run status and set GitHub commit status

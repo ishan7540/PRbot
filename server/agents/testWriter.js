@@ -1,7 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
-import config from '../config/index.js'
-
-const client = new Anthropic({ apiKey: config.anthropicApiKey })
+import { createJSONCompletion, getProvider } from '../config/ai.js'
 
 const systemPrompt = `You are a test writing agent for a Node.js/Express application.
 
@@ -27,39 +24,11 @@ Return ONLY valid JSON, no markdown, no backticks:
   ]
 }`
 
-async function callWithRetry(userContent, extraInstruction = '') {
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    temperature: 0,
-    system: systemPrompt,
-    messages: [
-      { role: 'user', content: userContent + extraInstruction },
-    ],
-  })
-
-  const text = response.content[0].text.trim()
-
-  try {
-    return JSON.parse(text)
-  } catch {
-    if (extraInstruction) {
-      throw new Error(
-        `TestWriter returned invalid JSON after retry. Raw: ${text.slice(0, 200)}`
-      )
-    }
-    return callWithRetry(
-      userContent,
-      '\n\nIMPORTANT: Return ONLY valid JSON. No other text whatsoever.'
-    )
-  }
-}
-
 /**
  * Generate test files based on the orchestrator's plan.
  */
 export async function generateTests(diff, plan, existingTests) {
-  console.log('[TestWriter] Generating tests...')
+  console.log(`[TestWriter] Generating tests (provider: ${getProvider()})...`)
 
   const testStyleExample =
     existingTests.length > 0
@@ -79,7 +48,12 @@ ${diff}
 Existing test style example:
 ${testStyleExample}`
 
-  const result = await callWithRetry(userMessage)
+  const result = await createJSONCompletion({
+    system: systemPrompt,
+    userMessage,
+    model: 'smart',
+  })
+
   console.log(
     `[TestWriter] Generated ${result.testFiles?.length || 0} test files`
   )

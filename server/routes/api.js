@@ -1,11 +1,8 @@
 import { Router } from 'express'
-import Anthropic from '@anthropic-ai/sdk'
 import Run from '../models/Run.js'
-import config from '../config/index.js'
+import { createCompletion } from '../config/ai.js'
 
 const router = Router()
-
-const anthropic = new Anthropic({ apiKey: config.anthropicApiKey })
 
 // GET /api/runs — list recent runs (summary projection)
 router.get('/runs', async (_req, res) => {
@@ -114,7 +111,7 @@ router.get('/runs/:id', async (req, res) => {
   }
 })
 
-// POST /api/runs/:id/ask — ask Claude about a run
+// POST /api/runs/:id/ask — ask AI about a run
 router.post('/runs/:id/ask', async (req, res) => {
   try {
     const run = await Run.findById(req.params.id)
@@ -123,21 +120,15 @@ router.post('/runs/:id/ask', async (req, res) => {
     const { question } = req.body
     if (!question) return res.status(400).json({ error: 'Question is required' })
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      temperature: 0,
+    const answer = await createCompletion({
       system:
         'You are a QA expert assistant. Answer questions about this PRbøt test run concisely and technically. Focus on actionable insights.',
-      messages: [
-        {
-          role: 'user',
-          content: `Run data:\n${JSON.stringify(run, null, 2)}\n\nQuestion: ${question}`,
-        },
-      ],
+      userMessage: `Run data:\n${JSON.stringify(run, null, 2)}\n\nQuestion: ${question}`,
+      model: 'smart',
+      maxTokens: 1024,
     })
 
-    res.json({ answer: response.content[0].text })
+    res.json({ answer })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

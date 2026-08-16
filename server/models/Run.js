@@ -32,7 +32,7 @@ const runSchema = new mongoose.Schema(
     generatedTests: [
       {
         path: String,
-        type: String,
+        type: { type: String }, // Mongoose fix: 'type' is a reserved keyword
         content: String,
         targetFile: String,
       },
